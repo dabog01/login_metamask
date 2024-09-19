@@ -15,7 +15,28 @@ function HomePage() {
     };
 
     checkWallet();
-  }, []);
+
+    const handleAccountsChanged = (accounts) => {
+      if (accounts.length === 0) {
+        alert('Por favor, conecta una cuenta a MetaMask.');
+      } else {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userAddress');
+        alert('Has cambiado de usuario. Por favor inicia sesión nuevamente.');
+        router.push('/'); // Redirigir a inicio
+      }
+    };
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+    }
+
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      }
+    };
+  }, [router]);
 
   async function handleWalletLogin() {
     setIsLoading(true);
@@ -28,7 +49,9 @@ function HomePage() {
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      console.log('Obteniendo nonce para la dirección:', address);
+      console.log('Iniciando sesión con la dirección:', address);
+
+      // Obtener nonce
       const nonceResponse = await fetch('/api/nonce', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,17 +60,17 @@ function HomePage() {
 
       if (!nonceResponse.ok) {
         const errorData = await nonceResponse.json();
+        console.error('Error fetching nonce:', errorData);
         throw new Error(errorData.message || 'Error al obtener el nonce');
       }
 
       const { nonce } = await nonceResponse.json();
       console.log('Nonce obtenido:', nonce);
 
-      console.log('Firmando mensaje...');
+      // Firmar mensaje
       const signedMessage = await signer.signMessage(nonce);
-      console.log('Mensaje firmado:', signedMessage);
 
-      console.log('Enviando solicitud de login...');
+      // Enviar solicitud de login al backend
       const loginResponse = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,6 +79,7 @@ function HomePage() {
 
       if (!loginResponse.ok) {
         const errorData = await loginResponse.json();
+        console.error('Error en el proceso de login:', errorData);
         throw new Error(errorData.error || 'Error en el proceso de login');
       }
 
@@ -64,7 +88,7 @@ function HomePage() {
       localStorage.setItem('userAddress', address);
 
       console.log('Login exitoso, redirigiendo...');
-      router.push('/protected-route');
+      router.push('/protected');
     } catch (error) {
       console.error('Error en el proceso de login:', error);
       alert(error.message || 'No se pudo iniciar sesión. Por favor, inténtalo de nuevo.');
@@ -75,21 +99,17 @@ function HomePage() {
 
   return (
     <div className={styles.container}>
-      <h1>¡Bienvenido a mi sitio!</h1>
+      <h1>¡Bienvenido!</h1>
+
       <p>Por favor, selecciona una opción para continuar:</p>
-      <div>
-        <button
-          className={styles.btn}
-          onClick={handleWalletLogin}
-          disabled={isLoading || !isWalletAvailable}
-        >
-          {isLoading ? 'Cargando...' : 'Iniciar sesión con Metamask'}
-        </button>
-        <br />
-        <br />
-      </div>
-      <Link href="/signup">
-        <button className={styles.btn}>Registrarse</button>
+
+      <button className={styles.btn} onClick={handleWalletLogin} disabled={isLoading}>
+        {isLoading ? 'Cargando...' : 'Iniciar sesión con MetaMask'}
+      </button>
+
+      {/* El enlace se coloca debajo del botón */}
+      <Link href="/signup" className={styles.link}>
+        ¿Aun no tienes cuenta?
       </Link>
     </div>
   );

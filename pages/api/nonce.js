@@ -10,17 +10,27 @@ export default async function handler(req, res) {
   try {
     await connectDB();
     const { address } = req.body;
-    const stringAddress = address.toString();
 
-    let user = await User.findOne({ blockchainAddress: stringAddress });
+    // Buscar usuario por dirección blockchain
+    let user = await User.findOne({ blockchainAddress: address });
+
+    // Si no existe el usuario, crearlo con valores predeterminados
     if (!user) {
-      return res.status(400).json({ message: 'Please register first' });
+      user = new User({
+        blockchainAddress: address,
+        nonce: null,
+        nonceCreatedAt: null,
+        email: `${address}@domain.com`, // Valor predeterminado para email
+        name: 'user', // Valor predeterminado para nombre
+      });
     }
 
+    // Generar un nuevo nonce
     const nonce = crypto.randomBytes(32).toString('hex');
     user.nonce = nonce;
     user.nonceCreatedAt = new Date();
-    await user.save();
+    
+    await user.save(); // Guardar usuario y nonce
 
     res.status(200).json({ nonce });
   } catch (error) {

@@ -22,10 +22,10 @@ function SignupPage() {
 
   return (
     <div className={styles.container}>
-      <h1>Sign up</h1>
+      <h1>Registro</h1>
       <form onSubmit={handleSubmit} className={styles.form}>
         <label>
-          <span className={styles.label}>Name:</span>
+          <span className={styles.label}>Nombre:</span>
           <input
             type="text"
             value={name}
@@ -43,7 +43,7 @@ function SignupPage() {
           />
         </label>
         <button type="submit" className={styles.btn}>
-          Submit
+          Guardar
         </button>
       </form>
     </div>

@@ -7,62 +7,63 @@ const secretKey = process.env.secretKey;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
     await connectDB();
     const { signedMessage, nonce, address } = req.body;
 
-    console.log('Received login request for address:', address);
-
+    // Validación de campos requeridos
     if (!signedMessage || !nonce || !address) {
-      console.log('Missing required fields:', { signedMessage, nonce, address });
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    const user = await User.findOne({ blockchainAddress: address });
+    let user = await User.findOne({ blockchainAddress: address });
+
+    // Crear nuevo usuario si no existe
     if (!user) {
-      console.log('User not found for address:', address);
-      return res.status(400).json({ error: 'User not found' });
+      user = new User({
+        blockchainAddress: address,
+        nonce: null,
+        nonceCreatedAt: null,
+        email: `${address}@domain.com`, // Valor predeterminado para email
+        name: 'Usuario Desconocido', // Valor predeterminado para nombre
+      });
+      await user.save(); // Guardar nuevo usuario
     }
 
-    console.log('User found:', user);
-
+    // Verificar existencia y validez del nonce
     if (!user.nonce || !user.nonceCreatedAt) {
-      console.log('Nonce not found for user:', user);
-      return res.status(400).json({ error: 'Nonce not found' });
+      return res.status(400).json({ error: 'Nonce no encontrado' });
     }
 
     const nonceAge = (new Date() - user.nonceCreatedAt) / 1000 / 60;
     if (nonceAge > 5) {
-      console.log('Nonce has expired. Age:', nonceAge);
-      return res.status(400).json({ error: 'Nonce has expired' });
+      return res.status(400).json({ error: 'El nonce ha expirado' });
     }
 
     if (user.nonce !== nonce) {
-      console.log('Invalid nonce. Expected:', user.nonce, 'Received:', nonce);
-      return res.status(400).json({ error: 'Invalid nonce' });
+      return res.status(400).json({ error: 'Nonce inválido' });
     }
 
-    console.log('Verifying message signature...');
+    // Verificar firma del mensaje
     const recoveredAddress = ethers.verifyMessage(nonce, signedMessage);
     if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-      console.log('Invalid signature. Recovered:', recoveredAddress, 'Expected:', address);
-      return res.status(401).json({ error: 'Invalid signature' });
+      return res.status(401).json({ error: 'Firma inválida' });
     }
 
-    console.log('Signature verified. Generating token...');
+    // Generar token JWT
     const token = jwt.sign({ userId: user._id, address }, secretKey, { expiresIn: '1h' });
 
+    // Limpiar el nonce después del inicio de sesión exitoso
     user.nonce = null;
     user.nonceCreatedAt = null;
     await user.save();
 
-    console.log('Login successful for address:', address);
     res.status(200).json({ token });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'An error occurred during login' });
+    console.error('Error en inicio de sesión:', error);
+    res.status(500).json({ error: 'Ocurrió un error durante el inicio de sesión' });
   }
 }
