@@ -1,3 +1,5 @@
+// pages/index.js
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -40,6 +42,7 @@ function HomePage() {
 
   async function handleWalletLogin() {
     setIsLoading(true);
+
     try {
       if (!isWalletAvailable) {
         throw new Error('No se detectó una billetera compatible. Por favor, instala MetaMask o usa Brave con su billetera integrada.');
@@ -89,6 +92,7 @@ function HomePage() {
 
       console.log('Login exitoso, redirigiendo...');
       router.push('/protected');
+
     } catch (error) {
       console.error('Error en el proceso de login:', error);
       alert(error.message || 'No se pudo iniciar sesión. Por favor, inténtalo de nuevo.');
@@ -107,7 +111,6 @@ function HomePage() {
         {isLoading ? 'Cargando...' : 'Iniciar sesión con MetaMask'}
       </button>
 
-      {/* El enlace se coloca debajo del botón */}
       <Link href="/signup" className={styles.link}>
         ¿Aun no tienes cuenta?
       </Link>
