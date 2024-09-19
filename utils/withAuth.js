@@ -18,7 +18,7 @@ const withAuth = (WrappedComponent) => {
           const provider = new ethers.BrowserProvider(window.ethereum);
           const signer = await provider.getSigner();
           const currentAddress = await signer.getAddress();
-          
+
           const token = localStorage.getItem('authToken');
           const storedAddress = localStorage.getItem('userAddress');
 
@@ -26,7 +26,21 @@ const withAuth = (WrappedComponent) => {
             throw new Error('No autenticado o dirección no coincide');
           }
 
-          setIsAuthenticated(true);
+          // Verificar el token con el backend
+          const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          const data = await response.json();
+
+          if (data.message === 'Valid') {
+            setIsAuthenticated(true);
+          } else {
+            throw new Error('Token inválido o expirado');
+          }
         } catch (error) {
           console.error('Error de autenticación:', error);
           localStorage.removeItem('authToken');
@@ -41,7 +55,7 @@ const withAuth = (WrappedComponent) => {
     }, [router]);
 
     if (isLoading) {
-      return <div>Cargando...</div>; // O cualquier componente de carga que prefieras
+      return <div>Cargando...</div>;
     }
 
     if (!isAuthenticated) {

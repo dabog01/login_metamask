@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import styles from '../styles/styles.module.css';
+import { ethers } from 'ethers';
 
 function HomePage() {
   const [isWalletAvailable, setIsWalletAvailable] = useState(false);
@@ -12,7 +13,7 @@ function HomePage() {
     const checkWallet = () => {
       setIsWalletAvailable(typeof window.ethereum !== 'undefined');
     };
-    
+
     checkWallet();
   }, []);
 
@@ -23,36 +24,47 @@ function HomePage() {
         throw new Error('No se detectó una billetera compatible. Por favor, instala MetaMask o usa Brave con su billetera integrada.');
       }
 
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
 
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No se pudo obtener la cuenta de la billetera');
-      }
-
-      const address = accounts[0];
-      console.log('Dirección de usuario:', address);
-
-      // Simular obtención de nonce del backend
-      const nonce = "Nonce de ejemplo: " + Math.random().toString(36).substring(7);
-
-      const signedMessage = await window.ethereum.request({
-        method: 'personal_sign',
-        params: [nonce, address],
+      console.log('Obteniendo nonce para la dirección:', address);
+      const nonceResponse = await fetch('/api/nonce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
       });
 
+      if (!nonceResponse.ok) {
+        const errorData = await nonceResponse.json();
+        throw new Error(errorData.message || 'Error al obtener el nonce');
+      }
+
+      const { nonce } = await nonceResponse.json();
+      console.log('Nonce obtenido:', nonce);
+
+      console.log('Firmando mensaje...');
+      const signedMessage = await signer.signMessage(nonce);
       console.log('Mensaje firmado:', signedMessage);
 
-      // Simular autenticación en el backend
-      const token = "token_de_ejemplo_" + Math.random().toString(36).substring(7);
+      console.log('Enviando solicitud de login...');
+      const loginResponse = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, signedMessage, nonce }),
+      });
 
+      if (!loginResponse.ok) {
+        const errorData = await loginResponse.json();
+        throw new Error(errorData.error || 'Error en el proceso de login');
+      }
+
+      const { token } = await loginResponse.json();
       localStorage.setItem('authToken', token);
       localStorage.setItem('userAddress', address);
 
-      console.log('Login exitoso! Token:', token);
-
-      // Redirigir al usuario a una ruta protegida
+      console.log('Login exitoso, redirigiendo...');
       router.push('/protected-route');
-
     } catch (error) {
       console.error('Error en el proceso de login:', error);
       alert(error.message || 'No se pudo iniciar sesión. Por favor, inténtalo de nuevo.');
@@ -66,8 +78,8 @@ function HomePage() {
       <h1>¡Bienvenido a mi sitio!</h1>
       <p>Por favor, selecciona una opción para continuar:</p>
       <div>
-        <button 
-          className={styles.btn} 
+        <button
+          className={styles.btn}
           onClick={handleWalletLogin}
           disabled={isLoading || !isWalletAvailable}
         >
