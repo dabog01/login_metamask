@@ -1,10 +1,12 @@
+// pages/api/signup.js
+
 import { ethers } from 'ethers';
 import connectDB from '@/utils/connectDB';
 import User from '@/models/schema';
 
-connectDB();
-
 async function handler(req, res) {
+  await connectDB(); // Mover la conexión aquí para asegurarse de que esté disponible en cada solicitud
+
   if (req.method === 'POST') {
     try {
       console.log("Intentando registrarse");
@@ -36,7 +38,8 @@ async function handler(req, res) {
         email: email || `${userBlockchainAddress.slice(0, 6)}@example.com`, 
         blockchainAddress: userBlockchainAddress 
       });
-      await newUser.save();
+      
+      await newUser.save(); // Asegúrate de esperar a que se guarde el nuevo usuario
 
       res.status(200).json({ 
         message: 'Usuario registrado exitosamente', 
